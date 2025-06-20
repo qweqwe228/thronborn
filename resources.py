@@ -2,7 +2,7 @@ import os
 import pygame
 from typing import Optional, Tuple, List, Dict
 
-# Глобальные кэши ресурсов
+# Глобальные кэши для избежания повторной загрузки ресурсов
 SPRITE_CACHE: Dict[str, pygame.Surface] = {}
 FONT_CACHE: Dict[int, pygame.font.Font] = {}
 SOUND_CACHE: Dict[str, pygame.mixer.Sound] = {}
@@ -111,16 +111,16 @@ def get_sound(name: str) -> Optional[pygame.mixer.Sound]:
 
 def preload_resources():
     try:
-        # Предзагрузка шрифтов
+        # Предзагружаем шрифты для стабильного отображения интерфейса
         get_font(20)  # HUD
-        get_font(24)  # Информация
-        get_font(28)  # Меню апгрейда
-        get_font(36)  # Пункты меню
+        get_font(24)  # Информационные элементы
+        get_font(28)  # Меню улучшений
+        get_font(36)  # Основное меню
         get_font(48)  # Заголовки
-        get_font(64)  # Пауза
-        get_font(72)  # Основной заголовок
+        get_font(64)  # Акцентный текст
+        get_font(72)  # Главный заголовок
 
-        # Загрузка основных звуков
+        # Загружаем звуки для быстрого отклика на действие
         load_sound("menu_navigate", "menu_navigate.wav", 0.5)
         load_sound("menu_confirm", "menu_confirm.wav", 0.7)
         load_sound("upgrade_success", "upgrade_success.wav", 0.7)
@@ -130,7 +130,7 @@ def preload_resources():
         load_sound("health", "health.wav", 0.7)
         load_sound("sword_attack", "sword_swing.wav", 0.6)
 
-        # Загрузка основных спрайтов
+        # Загружаем спрайты и спрайт-листы для динамики игры
         load_sprite("background", "background.png")
         load_sprite_sheet("player", "player.png", 4, 4, (50, 50))
         load_sprite_sheet("skeleton_walk", "skeleton_walk.png", 1, 13, (50, 70))
