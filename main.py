@@ -10,7 +10,9 @@ class SoundService:
     def __init__(self, volumes_dict):
         self.sounds = {}
         for name, volume in volumes_dict.items():
-            sound = pygame.mixer.Sound(buffer=bytes(8000))  # Fallback
+            # Используем запасной звук для ситуаций, когда файл не найден,
+            # чтобы игра продолжала работать даже при ошибке загрузки
+            sound = pygame.mixer.Sound(buffer=bytes(8000))
             try:
                 sound = pygame.mixer.Sound(f"assets/sounds/{name}.wav")
                 sound.set_volume(volume)
@@ -30,11 +32,12 @@ class Game:
         pygame.mixer.init()
 
         if FULLSCREEN:
-            # Полноэкранный режим с реальным разрешением
+            # Переходим в полноэкранный режим для использования нативного разрешения устройства,
+            # что обеспечивает оптимальное отображение интерфейса
             self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
             self.screen_width, self.screen_height = self.screen.get_size()
         else:
-            # Оконный режим с заданным размером
+            # Выбираем оконный режим с фиксированными размерами, что удобно для отладки и тестирования
             self.screen_width, self.screen_height = 800, 600
             self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
 
@@ -67,6 +70,7 @@ class Game:
 
             for event in events:
                 if event.type == pygame.QUIT:
+                    # Завершаем выполнение игры, так как пользователь закрыл окно
                     pygame.quit()
                     sys.exit()
 
