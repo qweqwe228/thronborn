@@ -4,6 +4,7 @@ import math
 from resources import load_sprite_sheet, load_sprite
 from settings import WORLD_WIDTH, WORLD_HEIGHT, PLAYER_BASE_HP, ENEMY_SPAWN_MARGIN
 
+# Конфигурация анимационных диапазонов для игрока по направлениям
 PLAYER_ANIMATIONS = {
     "down": slice(0, 4),
     "left": slice(4, 8),
@@ -11,33 +12,40 @@ PLAYER_ANIMATIONS = {
     "up": slice(12, 16)
 }
 
-# Фабрика для создания игровых объектов
+# Централизованная фабрика игровых объектов для единообразного создания сущностей
 class GameObjectFactory:
     def __init__(self, sound_service):
+        # Инициализация с передачей сервиса звука для использования аудиоэффектов
         self.sound_service = sound_service
 
     def create_player(self, pos, game_state):
+        # Создает объект игрока, связывая его с текущим игровым состоянием
         return Player(pos, game_state, self.sound_service)
 
     def create_enemy(self, pos, target):
+        # Создает врага, целенаправленно ориентированного на заданную цель
         return Enemy(pos, target, self.sound_service)
 
     def create_healing_item(self, pos, player):
+        # Создает аптечку для восстановления здоровья, привязанную к игроку
         return HealingItem(pos, player)
 
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos, game_state, sound_service):
         super().__init__()
+        # Связываем объект игрока с игровым состоянием и звуковым сервисом
         self.game_state = game_state
         self.sound_service = sound_service
 
+        # Задаем базовые характеристики игрока, используемые при обновлении статов
         self.base_speed = 5
         self.base_max_hits = PLAYER_BASE_HP
         self.base_damage = 1
         self.hits = 0
         self.update_stats()
 
+        # Загружаем анимационные кадры и устанавливаем начальное состояние
         self.animations = self.load_animations((50, 50))
         self.direction = "down"
         self.current_animation = self.animations[self.direction]
@@ -47,14 +55,17 @@ class Player(pygame.sprite.Sprite):
         self.animation_speed = 200
         self.last_update = pygame.time.get_ticks()
 
+        # Загружаем изображения для индикатора здоровья и отображаем текущий статус
         self.health_bar_images = load_sprite_sheet("health", "health_bar.png", 5, 1, (256, 64))
         self.update_hp_bar()
 
     def load_animations(self, scale):
+        # Загружает спрайт-лист игрока и распределяет кадры по направлениям движения
         frames = load_sprite_sheet("player", "player.png", 4, 4, scale)
         return {d: frames[s] for d, s in PLAYER_ANIMATIONS.items()}
 
     def update_hp_bar(self):
+        # Пересчитывает изображение индикатора здоровья в зависимости от полученного урона
         total_images = len(self.health_bar_images)
         if total_images == 0:
             return
@@ -65,29 +76,32 @@ class Player(pygame.sprite.Sprite):
 
     @property
     def hp_image(self):
+        # Возвращает текущее изображение для индикации здоровья игрока
         return self.current_hp_image
 
     def take_damage(self, damage=1):
+        # Обрабатывает урон игрока и обновляет индикатор здоровья; уничтожает объект при полном исчерпании здоровья
         self.hits = min(self.hits + damage, self.max_hits)
         self.update_hp_bar()
         self.sound_service.play("player_damage")
-
         if self.hits >= self.max_hits:
             self.kill()
 
     def heal(self, amount=1):
+        # Восстанавливает здоровье, уменьшая накопленный урон
         self.hits = max(0, self.hits - amount)
         self.update_hp_bar()
 
     def update_stats(self):
+        # Пересчитывает параметры игрока с учетом улучшений, накопленных в прогрессе
         self.speed = self.base_speed * (1.0 + 0.1 * self.game_state.progress.speed_upgrades)
         self.max_hits = self.base_max_hits + self.game_state.progress.health_upgrades
         self.damage = self.base_damage + self.game_state.progress.damage_upgrades
-
         if hasattr(self, 'health_bar_images'):
             self.update_hp_bar()
 
     def update(self):
+        # Обрабатывает ввод и перемещение игрока, обновляя анимацию и обеспечивая цикличность игрового поля
         keys = pygame.key.get_pressed()
         dx = dy = 0
         new_direction = self.direction
@@ -113,7 +127,7 @@ class Player(pygame.sprite.Sprite):
         self.rect.x += dx
         self.rect.y += dy
 
-        #Обработка границ мира(закольцованное пространство)
+        # Обеспечивает цикличность мира, переводя объект на противоположную сторону при выходе за границы
         if self.rect.right < 0:
             self.rect.left = WORLD_WIDTH
         elif self.rect.left > WORLD_WIDTH:
@@ -138,6 +152,7 @@ class Player(pygame.sprite.Sprite):
         self.image = self.current_animation[self.frame_index]
 
     def attack(self, effects_group, enemy_group):
+        # Запускает эффект атаки мечом и воспроизводит соответствующий звуковой сигнал
         from effects import SwordSwingEffect
         effects_group.add(SwordSwingEffect(self, enemy_group, 200, (50, 50), 15))
         self.sound_service.play("sword_attack")
@@ -151,6 +166,7 @@ class Enemy(pygame.sprite.Sprite):
 
     def __init__(self, pos, target, sound_service):
         super().__init__()
+        # Загружает набор анимаций для различных состояний врага
         self.walk_animations = load_sprite_sheet("skeleton_walk", "skeleton_walk.png", 1, 13, (50, 70))
         self.attack_animations = load_sprite_sheet("skeleton_attack", "skeleton_attack.png", 1, 18, (80, 80))
         self.death_animations = load_sprite_sheet("skeleton_dead", "skeleton_dead.png", 1, 15, (50, 70))
@@ -176,6 +192,7 @@ class Enemy(pygame.sprite.Sprite):
         self.sound_service = sound_service
 
     def update(self):
+        # Основной цикл обновления состояния врага, выбирающий поведение в зависимости от дистанции до цели
         now = pygame.time.get_ticks()
 
         if self.state == self.STATE_DYING:
@@ -199,6 +216,7 @@ class Enemy(pygame.sprite.Sprite):
             self.handle_attack_state(now)
 
     def handle_death_state(self, now):
+        # Отвечает за анимацию смерти, включая затухание и окончательное исчезновение врага
         elapsed = now - self.death_start_time
         frame_duration = 2000 / len(self.death_animations)
         self.frame_index = min(int(elapsed / frame_duration), len(self.death_animations) - 1)
@@ -216,6 +234,7 @@ class Enemy(pygame.sprite.Sprite):
             self.image.set_alpha(self.alpha)
 
     def handle_hit_state(self, now):
+        # Обрабатывает ситуацию, когда враг получает урон, переключая анимацию при кратковременном эффекте попадания
         elapsed = now - self.hit_start_time
         frame_duration = 500 / len(self.hit_animations)
         self.frame_index = min(int(elapsed / frame_duration), len(self.hit_animations))
@@ -229,6 +248,7 @@ class Enemy(pygame.sprite.Sprite):
             self.mirror_image()
 
     def handle_walk_state(self, now, distance):
+        # Управляет движением врага к цели с регулярной сменой кадров и проверкой границ игрового мира
         if now - self.last_update > 50:
             self.last_update = now
             self.frame_index = (self.frame_index + 1) % len(self.walk_animations)
@@ -252,6 +272,7 @@ class Enemy(pygame.sprite.Sprite):
                 self.rect.bottom = 0
 
     def handle_attack_state(self, now):
+        # Выполняет анимацию атаки; в момент удара проверяет коллизию с целью и предотвращает повторное срабатывание
         if now - self.last_update > 25:
             self.last_update = now
             self.frame_index += 1
@@ -271,10 +292,12 @@ class Enemy(pygame.sprite.Sprite):
                 self.mirror_image()
 
     def mirror_image(self):
+        # Отражает изображение врага для корректного отображения направления движения
         if self.target.rect.centerx < self.rect.centerx:
             self.image = pygame.transform.flip(self.image, True, False)
 
     def take_damage(self, amount=1):
+        # Обрабатывает получение урона врагом, переходя в соответствующее состояние анимации
         if self.state == self.STATE_DYING:
             return
 
@@ -298,6 +321,7 @@ class Enemy(pygame.sprite.Sprite):
 class HealingItem(pygame.sprite.Sprite):
     def __init__(self, pos, player, speed=3):
         super().__init__()
+        # Инициализирует аптечку с анимацией и случайной целью движения в пределах мира
         self.animations = load_sprite_sheet("meep_moop", "meep_moop.png", 1, 2, (50, 65))
         self.image = self.animations[0]
         self.rect = self.image.get_rect(center=pos)
@@ -311,6 +335,7 @@ class HealingItem(pygame.sprite.Sprite):
         )
 
     def update(self):
+        # Меняет направление движения, если достигнута указанная цель, и мигает для привлечения внимания
         if self.pos.distance_to(self.dest) < 5:
             self.dest = pygame.Vector2(
                 random.randint(50, WORLD_WIDTH - 50),
@@ -323,37 +348,31 @@ class HealingItem(pygame.sprite.Sprite):
 
 
 def resolve_collisions(enemies):
-    # Преобразуем группу спрайтов в список для обработки
+    # Корректирует позиционирование врагов, предотвращая их наложение при столкновениях
     enemy_list = list(enemies)
 
-    # Двойной цикл для проверки всех уникальных пар врагов
     for i in range(len(enemy_list)):
         for j in range(i + 1, len(enemy_list)):
-            # Берем двух врагов из списка
             e1, e2 = enemy_list[i], enemy_list[j]
 
-            # Пропускаем пару если:
+            # Пропускает обработку, если враг умирает или прямого столкновения не происходит
             if e1.state == "dying" or e2.state == "dying" or not e1.rect.colliderect(e2.rect):
-                continue  # один умирает
-                # они не пересекаются
+                continue
 
             dx = e2.rect.centerx - e1.rect.centerx
             dy = e2.rect.centery - e1.rect.centery
 
-            # Вычисляем расстояние между врагами
-            dist = max(1, math.hypot(dx, dy))  # Не меньше 1 чтобы избежать деления на 0
-            # Сумма радиусов (текущее расстояние)
+            # Рассчитывает расстояние между центрами для определения степени перекрытия
+            dist = max(1, math.hypot(dx, dy))
             overlap = (e1.rect.width / 2 + e2.rect.width / 2) - dist
 
-            # Если враги действительно пересекаются
             if overlap > 0:
-                # Вычисляем вектор сдвига (нормированный)
+                # Вычисляет нормализованный вектор смещения для устранения наложения объектов
                 shift_x = (dx / dist) * (overlap / 2)
                 shift_y = (dy / dist) * (overlap / 2)
 
-                # Раздвигаем врагов в противоположные стороны
-                e1.rect.x -= shift_x  # Первого врага отталкиваем назад
+                e1.rect.x -= shift_x  # Смещает первого врага назад от центра столкновения
                 e1.rect.y -= shift_y
 
-                e2.rect.x += shift_x  # Второго врага отталкиваем вперед
+                e2.rect.x += shift_x  # Смещает второго врага вперед в противоположном направлении
                 e2.rect.y += shift_y
